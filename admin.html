@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barangay Monitoring Portal - Admin Requests Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: { DEFAULT: '#009966', hover: '#008558', light: '#e6f5f0' },
+                        navy: { 800: '#0b192c', 900: '#0f172a' }
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        // Session Guard Check
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser) {
+            window.location.href = 'index.html'; // Redirect to login if no active session
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-slate-100/70 min-h-screen p-4 sm:p-6 space-y-6 font-sans text-slate-800">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    </div>
+
+    <!-- Header Panel -->
+    <div
+        class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-navy-900 flex items-center gap-2">
+                📄 Admin Document Requests Inbox
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Review, approve, and process official barangay document requests
+                submitted by residents</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="text-right text-xs hidden sm:block">
+                <span class="text-slate-400">Logged in as:</span>
+                <p class="font-bold text-brand text-sm" id="adminUserName">Barangay Admin</p>
+            </div>
+            <a href="dashboard.html"
+                class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5">
+                Switch to Resident View →
+            </a>
+        </div>
+    </div>
+
+    <!-- Requests Overview Table Container -->
+    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center flex-wrap gap-2">
+            <div>
+                <h3 class="text-sm font-bold text-navy-900">Incoming Requests Queue</h3>
+                <p class="text-[11px] text-slate-400">All resident document submissions sync here in real time</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="clearAllRequests()" class="text-xs text-red-500 hover:underline font-semibold">
+                    Clear Queue
+                </button>
+                <button onclick="renderAdminTable()"
+                    class="px-3 py-1.5 bg-brand-light text-brand hover:bg-emerald-100 text-xs font-bold rounded-xl transition-all flex items-center gap-1">
+                    🔄 Refresh Queue
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr
+                        class="bg-slate-50 text-[11px] text-slate-500 uppercase tracking-wider border-b border-slate-100">
+                        <th class="px-6 py-3 font-semibold">Request ID & Date</th>
+                        <th class="px-6 py-3 font-semibold">Resident Name</th>
+                        <th class="px-6 py-3 font-semibold">Document Requested</th>
+                        <th class="px-6 py-3 font-semibold">Purpose</th>
+                        <th class="px-6 py-3 font-semibold">Status</th>
+                        <th class="px-6 py-3 font-semibold text-right">Admin Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="adminRequestsTableBody" class="divide-y divide-slate-100 text-xs">
+                    <!-- Requests rendered dynamically via JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-emerald-600' : 'bg-slate-800';
+            toast.className = `${bgColor} text-white text-xs px-4 py-3 rounded-xl shadow-lg transition-all duration-300 opacity-0 transform translate-y-[-10px]`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('opacity-0', 'translate-y-[-10px]'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function getRequests() {
+            return JSON.parse(localStorage.getItem('portalRequests')) || [];
+        }
+
+        function updateRequestStatus(reqId, newStatus) {
+            const requests = getRequests();
+            const index = requests.findIndex(r => r.id === reqId);
+            if (index !== -1) {
+                requests[index].status = newStatus;
+                localStorage.setItem('portalRequests', JSON.stringify(requests));
+                renderAdminTable();
+                showToast(`Request ${reqId} updated to "${newStatus}"`, 'success');
+            }
+        }
+
+        function clearAllRequests() {
+            if (confirm('Are you sure you want to clear all requests in the inbox?')) {
+                localStorage.setItem('portalRequests', JSON.stringify([]));
+                renderAdminTable();
+                showToast('All requests cleared.', 'info');
+            }
+        }
+
+        function renderAdminTable() {
+            const tbody = document.getElementById('adminRequestsTableBody');
+            const requests = getRequests();
+
+            if (requests.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-slate-400 italic">
+                            No document requests received in the queue yet.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = requests.map(r => {
+                let badgeStyle = 'bg-amber-100 text-amber-700 border-amber-200';
+                if (r.status === 'Approved' || r.status === 'Completed') badgeStyle = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                if (r.status === 'Rejected') badgeStyle = 'bg-red-100 text-red-700 border-red-200';
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition-colors">
+                        <td class="px-6 py-4 font-bold text-slate-700">
+                            <div>${r.id}</div>
+                            <div class="text-[10px] text-slate-400 font-normal">${r.dateSubmitted}</div>
+                        </td>
+                        <td class="px-6 py-4 font-bold text-slate-800">${r.residentName}</td>
+                        <td class="px-6 py-4 font-semibold text-slate-700">${r.docType}</td>
+                        <td class="px-6 py-4 text-slate-500">${r.purpose}</td>
+                        <td class="px-6 py-4">
+                            <span class="px-2.5 py-1 text-[10px] font-bold rounded-full border ${badgeStyle}">${r.status}</span>
+                        </td>
+                        <td class="px-6 py-4 text-right space-x-1">
+                            <button onclick="updateRequestStatus('${r.id}', 'Approved')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-[11px] font-bold rounded-lg transition-all">
+                                Approve
+                            </button>
+                            <button onclick="updateRequestStatus('${r.id}', 'Completed')" class="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-[11px] font-bold rounded-lg transition-all">
+                                Complete
+                            </button>
+                            <button onclick="updateRequestStatus('${r.id}', 'Rejected')" class="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-[11px] font-bold rounded-lg transition-all">
+                                Reject
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (user) {
+                document.getElementById('adminUserName').textContent = user.fullName;
+            }
+            renderAdminTable();
+        });
+    </script>
+</body>
+
+</html>

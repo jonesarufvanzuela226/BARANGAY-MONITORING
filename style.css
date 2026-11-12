@@ -1,0 +1,25 @@
+/* Base styles and gradient background */
+body {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom focus ring for input wrappers */
+.custom-input:focus-within {
+    border-color: #009966;
+    box-shadow: 0 0 0 4px rgba(0, 153, 102, 0.12);
+}
+
+/* Checkbox styling */
+.custom-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #009966;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* Panel view switcher toggle */
+.view-panel.hidden {
+    display: none;
+}
